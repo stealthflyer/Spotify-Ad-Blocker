@@ -36,7 +36,6 @@ namespace EZBlocker
             try
             {
                 result = GetPage(GetURL("/remote/status.json" + "?oauth=" + oauthToken + "&csrf=" + csrfToken));
-                Debug.WriteLine(result);
             }
             catch (WebException ex)
             {
@@ -85,6 +84,21 @@ namespace EZBlocker
                             if (line.Contains("\"name\":"))
                             {
                                 whr.artistName = (line.Replace("\"name\":", "").Split('"')[1]);
+                                break;
+                            }
+                        }
+                    }
+                    else if (line.Contains("\"track_resource\":"))
+                    {
+                        while ((line = reader.ReadLine()) != null) // Read until we find the "name" field
+                        {
+                            if (line.Contains("\"name\":"))
+                            {
+                                whr.songName = (line.Replace("\"name\":", "").Split('"')[1]);
+                            }
+                            if (line.Contains("\"og\":"))
+                            {
+                                whr.songUrl = (line.Replace("\"og\":", "").Split('"')[1]);
                                 break;
                             }
                         }
@@ -161,7 +175,6 @@ namespace EZBlocker
 
         private static string GetPage(string URL)
         {
-            Debug.WriteLine("Getting page " + URL);
             WebClient w = new WebClient();
             w.Headers.Add("user-agent", ua);
             w.Headers.Add("Origin", "https://open.spotify.com");

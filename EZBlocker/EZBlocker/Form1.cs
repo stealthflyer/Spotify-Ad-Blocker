@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Quobject.SocketIoClientDotNet.Client;
+using System;
 using System.IO;
 using System.Net;
 using System.Reflection;
@@ -63,9 +64,30 @@ namespace EZBlocker
         private string screenRes = Screen.PrimaryScreen.Bounds.Width + "x" + Screen.PrimaryScreen.Bounds.Height;
         private const string trackingId = "UA-42480515-3";
 
+        private Socket socket = IO.Socket("http://localhost:3000/");
+
         public Main()
         {
             InitializeComponent();
+            socket.Open();
+            socket.On("pause", (data) =>
+            {
+                WebHelperResult whr = WebHelperHook.GetStatus();
+                if (whr.isPlaying)
+                {
+                    whr.isPlaying = false;
+                    BeginInvoke(new Action(this.Resume));
+                }
+            });
+            socket.On("play", (data) =>
+            {
+                WebHelperResult whr = WebHelperHook.GetStatus();
+                if (!whr.isPlaying)
+                {
+                    whr.isPlaying = true;
+                    BeginInvoke(new Action(this.Resume));
+                }
+            });
         }
 
         /**
@@ -130,6 +152,7 @@ namespace EZBlocker
                 {
                     StatusLabel.Text = "Spotify is paused";
                     lastArtistName = "";
+                    socket.Emit("update", new object[] { "I am not listening to anything (paused)" });
                 }
                 else // Song is playing
                 {
@@ -140,6 +163,8 @@ namespace EZBlocker
                         StatusLabel.Text = "Playing: " + ShortenName(whr.artistName);
                         lastArtistName = whr.artistName;
                     }
+                    socket.Open();
+                    socket.Emit("update", new object[] { whr.songName + "||" + whr.artistName + "||" + whr.songUrl });
                 }
             }
             catch (Exception ex)

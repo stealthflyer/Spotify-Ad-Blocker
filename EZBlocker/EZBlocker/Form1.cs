@@ -108,6 +108,7 @@ namespace EZBlocker
 
                 if (whr.isAd) // Track is ad
                 {
+                    socket.Emit("update", new object[] { "I am stuck in an Ad. Don't worry, it is muted" });
                     if (whr.isPlaying)
                     {
                         Debug.WriteLine("Ad is playing");

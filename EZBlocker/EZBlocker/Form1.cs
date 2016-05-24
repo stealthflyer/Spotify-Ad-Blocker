@@ -1,15 +1,15 @@
-﻿using Quobject.SocketIoClientDotNet.Client;
+﻿using CoreAudio;
+using Microsoft.Win32;
+using Quobject.SocketIoClientDotNet.Client;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Linq;
-using System.Windows.Forms;
-using System.Diagnostics;
-using CoreAudio;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.Win32;
+using System.Windows.Forms;
 
 namespace EZBlocker
 {
@@ -30,28 +30,33 @@ namespace EZBlocker
         private string volumeMixerPath = Environment.GetEnvironmentVariable("WINDIR") + @"\System32\SndVol.exe";
         private string hostsPath = Environment.GetEnvironmentVariable("WINDIR") + @"\System32\drivers\etc\hosts";
 
-        private string[] adHosts = { "pubads.g.doubleclick.net", "securepubads.g.doubleclick.net", "www.googletagservices.com", "gads.pubmatic.com", "ads.pubmatic.com", "spclient.wg.spotify.com"};
+        private string[] adHosts = { "pubads.g.doubleclick.net", "securepubads.g.doubleclick.net", "www.googletagservices.com", "gads.pubmatic.com", "ads.pubmatic.com", "spclient.wg.spotify.com" };
 
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
         [DllImport("shell32.dll")]
         public static extern bool IsUserAnAdmin();
+
         [DllImport("user32.dll")]
-        static extern bool SetWindowText(IntPtr hWnd, string text);
+        private static extern bool SetWindowText(IntPtr hWnd, string text);
 
         // https://msdn.microsoft.com/en-us/library/windows/desktop/ms646275%28v=vs.85%29.aspx
         private const int WM_APPCOMMAND = 0x319;
+
         private const int APPCOMMAND_VOLUME_MUTE = 0x80000;
         private const int MEDIA_PLAYPAUSE = 0xE0000;
         private const int MEDIA_NEXTTRACK = 0xB0000;
-        
+
         private string EZBlockerUA = "EZBlocker " + Assembly.GetExecutingAssembly().GetName().Version.ToString() + " " + System.Environment.OSVersion;
         private const string website = @"https://www.ericzhang.me/projects/spotify-ad-blocker-ezblocker/";
 
         // Google Analytics stuff
         private Random rnd;
+
         private long starttime, lasttime;
         private string visitorId;
         private int runs = 1;
@@ -93,9 +98,11 @@ namespace EZBlocker
         /**
          * Contains the logic for when to mute Spotify
          **/
+
         private void MainTimer_Tick(object sender, EventArgs e)
         {
-            try {
+            try
+            {
                 if (Process.GetProcessesByName("spotify").Length < 1)
                 {
                     File.AppendAllText(logPath, "Spotify process not found\r\n");
@@ -173,12 +180,13 @@ namespace EZBlocker
                 File.AppendAllText(logPath, ex.Message);
             }
         }
-       
+
         /**
          * Mutes/Unmutes Spotify.
-         
+
          * i: 0 = unmute, 1 = mute, 2 = toggle
          **/
+
         private void Mute(int i)
         {
             if (i == 2) // Toggle mute
@@ -222,12 +230,12 @@ namespace EZBlocker
                 process.StartInfo = startInfo;
                 process.Start();
             }
-
         }
 
         /**
          * Resumes playing Spotify
          **/
+
         private void Resume()
         {
             Debug.WriteLine("Resuming Spotify");
@@ -244,6 +252,7 @@ namespace EZBlocker
         /**
          *  Plays next track queued on Spotify
          **/
+
         private void NextTrack()
         {
             Debug.WriteLine("Skipping to next track");
@@ -260,6 +269,7 @@ namespace EZBlocker
         /**
          * Gets the Spotify process handle
          **/
+
         private IntPtr GetHandle()
         {
             foreach (Process t in Process.GetProcesses().Where(t => t.ProcessName.ToLower().Contains("spotify")))
@@ -273,6 +283,7 @@ namespace EZBlocker
         /**
          * Gets the source of a given URL
          **/
+
         private string GetPage(string URL, string ua)
         {
             WebClient w = new WebClient();
@@ -293,15 +304,18 @@ namespace EZBlocker
         /**
          * Checks if the current installation is the latest version. Prompts user if not.
          **/
+
         private void CheckUpdate()
         {
             if (Properties.Settings.Default.UpdateSettings) // If true, then first launch of latest EZBlocker
             {
                 try
                 {
+                    /*
                     if (File.Exists(nircmdPath)) File.Delete(nircmdPath);
                     if (File.Exists(jsonPath)) File.Delete(jsonPath);
                     if (File.Exists(coreaudioPath)) File.Delete(coreaudioPath);
+                    */
                     Properties.Settings.Default.Upgrade();
                     Properties.Settings.Default.UpdateSettings = false;
                     Properties.Settings.Default.UserEducated = false;
@@ -334,6 +348,7 @@ namespace EZBlocker
         /**
          * Send a request every 5 minutes to Google Analytics
          **/
+
         private void Heartbeat_Tick(object sender, EventArgs e)
         {
             LogAction("/heartbeat");
@@ -348,15 +363,17 @@ namespace EZBlocker
                     int releaseKey = Convert.ToInt32(ndpKey.GetValue("Release"));
                     if (releaseKey >= 378389) return true;
                 }
-            } catch (Exception ignore) {}
+            }
+            catch (Exception ignore) { }
             return false;
         }
 
         /**
          * Based off of: http://stackoverflow.com/questions/12851868/how-to-send-request-to-google-analytics-in-non-web-based-app
-         * 
+         *
          * Logs actions using Google Analytics
          **/
+
         private void LogAction(string pagename)
         {
             try
@@ -391,10 +408,11 @@ namespace EZBlocker
             this.ShowInTaskbar = true;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
         }
-        
+
         /**
          * Processes window message and shows EZBlocker when attempting to launch a second instance.
          **/
+
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == WindowUtilities.WM_SHOWAPP)
@@ -488,7 +506,7 @@ namespace EZBlocker
                 Debug.WriteLine(ex);
             }
         }
-        
+
         private void VolumeMixerButton_Click(object sender, EventArgs e)
         {
             try
@@ -548,7 +566,8 @@ namespace EZBlocker
             }
 
             // Extract dependencies
-            try {
+            try
+            {
                 if (!File.Exists(nircmdPath))
                 {
                     File.WriteAllBytes(nircmdPath, Properties.Resources.nircmd32);
@@ -561,7 +580,8 @@ namespace EZBlocker
                 {
                     File.WriteAllBytes(coreaudioPath, Properties.Resources.CoreAudio);
                 }
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Debug.WriteLine(ex);
                 MessageBox.Show("Error loading EZBlocker dependencies. Please run EZBlocker as administrator or put EZBlocker in a user folder.");
@@ -584,7 +604,7 @@ namespace EZBlocker
                 Properties.Settings.Default.Save();
             }
             visitorId = Properties.Settings.Default.UID;
-            
+
             File.AppendAllText(logPath, "-----------\r\n");
             bool unsafeHeaders = WebHelperHook.SetAllowUnsafeHeaderParsing20();
             Debug.WriteLine("Unsafe Headers: " + unsafeHeaders);
@@ -594,14 +614,15 @@ namespace EZBlocker
                 if (MessageBox.Show("You do not have .NET Framework 4.5. Download now?", "EZBlocker Error", MessageBoxButtons.YesNo, MessageBoxIcon.Asterisk) == DialogResult.Yes)
                 {
                     Process.Start("https://www.microsoft.com/en-us/download/details.aspx?id=30653");
-                } else
+                }
+                else
                 {
                     MessageBox.Show("EZBlocker may not function properly without .NET Framework 4.5 or above.");
                 }
             }
 
             Mute(0);
-            
+
             MainTimer.Enabled = true;
 
             LogAction("/launch");

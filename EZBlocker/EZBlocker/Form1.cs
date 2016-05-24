@@ -30,7 +30,7 @@ namespace EZBlocker
         private string volumeMixerPath = Environment.GetEnvironmentVariable("WINDIR") + @"\System32\SndVol.exe";
         private string hostsPath = Environment.GetEnvironmentVariable("WINDIR") + @"\System32\drivers\etc\hosts";
 
-        private string[] adHosts = { "pubads.g.doubleclick.net", "securepubads.g.doubleclick.net", "www.googletagservices.com", "gads.pubmatic.com", "ads.pubmatic.com"};
+        private string[] adHosts = { "pubads.g.doubleclick.net", "securepubads.g.doubleclick.net", "www.googletagservices.com", "gads.pubmatic.com", "ads.pubmatic.com", "spclient.wg.spotify.com"};
 
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
@@ -96,8 +96,7 @@ namespace EZBlocker
         private void MainTimer_Tick(object sender, EventArgs e)
         {
             try {
-                IntPtr handle = GetHandle();
-                if (handle == IntPtr.Zero)
+                if (Process.GetProcessesByName("spotify").Length < 1)
                 {
                     File.AppendAllText(logPath, "Spotify process not found\r\n");
                     Notify("Exiting EZBlocker.");
@@ -467,7 +466,7 @@ namespace EZBlocker
             {
                 // Always clear hosts
                 string[] text = File.ReadAllLines(hostsPath);
-                text = text.Where(line => !adHosts.Contains(line.Replace("0.0.0.0 ", "")) && line.Length > 0).ToArray();
+                text = text.Where(line => !adHosts.Contains(line.Replace("0.0.0.0 ", "")) && line.Length > 0 && !line.Contains("open.spotify.com")).ToArray();
                 File.WriteAllLines(hostsPath, text);
 
                 if (BlockBannersCheckbox.Checked)

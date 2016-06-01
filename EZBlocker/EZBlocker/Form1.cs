@@ -376,30 +376,7 @@ namespace EZBlocker
 
         private void LogAction(string pagename)
         {
-            try
-            {
-                lasttime = DateTime.Now.Ticks;
-                string statsRequest = "http://www.google-analytics.com/__utm.gif" +
-                    "?utmwv=4.6.5" +
-                    "&utmn=" + rnd.Next(100000000, 999999999) +
-                    "&utmcs=-" +
-                    "&utmsr=" + screenRes +
-                    "&utmsc=-" +
-                    "&utmul=" + language +
-                    "&utmje=-" +
-                    "&utmfl=-" +
-                    "&utmdt=" + pagename +
-                    "&utmp=" + pagename +
-                    "&utmac=" + trackingId + // Account number
-                    "&utmcc=" +
-                        "__utma%3D" + domainHash + "." + visitorId + "." + starttime + "." + lasttime + "." + starttime + "." + (runs++) +
-                        "%3B%2B__utmz%3D" + domainHash + "." + lasttime + "." + sessionNumber + "." + campaignNumber + ".utmcsr%3D" + source + "%7Cutmccn%3D(" + medium + ")%7Cutmcmd%3D" + medium + "%7Cutmcct%3D%2Fd31AaOM%3B";
-                using (var client = new WebClient())
-                {
-                    client.DownloadData(statsRequest);
-                }
-            }
-            catch { /*ignore*/ }
+            // Not for me
         }
 
         private void RestoreFromTray()

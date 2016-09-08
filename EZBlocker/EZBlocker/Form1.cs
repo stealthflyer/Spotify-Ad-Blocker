@@ -19,6 +19,7 @@ namespace EZBlocker
         private bool spotifyMute = false;
         private float volume = 0.9f;
         private string lastArtistName = "";
+        private int exitTolerance = 0;
 
         private string nircmdPath = Application.StartupPath + @"\nircmd.exe";
         private string jsonPath = Application.StartupPath + @"\Newtonsoft.Json.dll";
@@ -105,9 +106,17 @@ namespace EZBlocker
             {
                 if (Process.GetProcessesByName("spotify").Length < 1)
                 {
-                    File.AppendAllText(logPath, "Spotify process not found\r\n");
-                    Notify("Exiting EZBlocker.");
-                    Application.Exit();
+                    if (exitTolerance > 10)
+                    {
+                        File.AppendAllText(logPath, "Spotify process not found\r\n");
+                        Notify("Spotify not found, exiting EZBlocker.");
+                        Application.Exit();
+                    }
+                    exitTolerance += 1;
+                }
+                else
+                {
+                    exitTolerance = 0;
                 }
 
                 WebHelperResult whr = WebHelperHook.GetStatus();
@@ -164,7 +173,7 @@ namespace EZBlocker
                 else // Song is playing
                 {
                     if (muted) Mute(0);
-                    if (MainTimer.Interval > 1000) MainTimer.Interval = 1000;
+                    if (MainTimer.Interval > 1000) MainTimer.Interval = 600;
                     if (lastArtistName != whr.artistName)
                     {
                         StatusLabel.Text = "Playing: " + ShortenName(whr.artistName);
@@ -430,7 +439,7 @@ namespace EZBlocker
             if (this.WindowState == FormWindowState.Minimized)
             {
                 this.ShowInTaskbar = false;
-                this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
+                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
                 Notify("EZBlocker is hidden. Double-click this icon to restore.");
             }
         }
@@ -484,11 +493,27 @@ namespace EZBlocker
             }
         }
 
+        private void StartupCheckbox_CheckedChanged(object sender, EventArgs e)
+        {
+            if (visitorId == null) return; // Still setting up UI
+            RegistryKey startupKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            if (StartupCheckbox.Checked)
+            {
+                startupKey.SetValue("EZBlocker", "\"" + Application.ExecutablePath + "\"");
+            }
+            else
+            {
+                startupKey.DeleteValue("EZBlocker");
+            }
+            LogAction("/settings/startup/" + StartupCheckbox.Checked.ToString());
+        }
+
         private void VolumeMixerButton_Click(object sender, EventArgs e)
         {
             try
             {
                 Process.Start(volumeMixerPath);
+                LogAction("/button/volumemixer");
             }
             catch (Exception ignore)
             {
@@ -531,11 +556,27 @@ namespace EZBlocker
             // Start Spotify and give EZBlocker higher priority
             try
             {
-                if (File.Exists(spotifyPath) && GetHandle() == IntPtr.Zero)
+                if (File.Exists(spotifyPath) && Process.GetProcessesByName("spotify").Length < 1)
                 {
                     Process.Start(spotifyPath);
                 }
                 Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High; // Windows throttles down when minimized to task tray, so make sure EZBlocker runs smoothly
+
+                // Check for open.spotify.com in hosts
+                String hostsContent = File.ReadAllText(hostsPath);
+                if (hostsContent.Contains("open.spotify.com"))
+                {
+                    if (IsUserAnAdmin())
+                    {
+                        File.WriteAllText(hostsPath, hostsContent.Replace("open.spotify.com", "localhost"));
+                        MessageBox.Show("An EZBlocker patch has been applied to your hosts file. If EZBlocker is stuck at 'Loading', please restart your computer.", "EZBlocker", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show("EZBlocker has detected an error in your hosts file.\r\n\r\nPlease re-run EZBlocker as Administrator or remove 'open.spotify.com' from your hosts file.", "EZBlocker", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Application.Exit();
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -570,6 +611,19 @@ namespace EZBlocker
             {
                 string hostsFile = File.ReadAllText(hostsPath);
                 BlockBannersCheckbox.Checked = adHosts.All(host => hostsFile.Contains("0.0.0.0 " + host));
+            }
+            RegistryKey startupKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            if (startupKey.GetValue("EZBlocker") != null)
+            {
+                if (startupKey.GetValue("EZBlocker").ToString() == "\"" + Application.ExecutablePath + "\"")
+                {
+                    StartupCheckbox.Checked = true;
+                    this.WindowState = FormWindowState.Minimized;
+                }
+                else // Reg value exists, but not in right path
+                {
+                    startupKey.DeleteValue("EZBlocker");
+                }
             }
 
             // Google Analytics
@@ -609,9 +663,9 @@ namespace EZBlocker
         {
             if (!Properties.Settings.Default.UserEducated)
             {
-                var result = MessageBox.Show("Spotify ads will not be blocked if EZBlocker is not running. Are you sure you want to exit?", "EZBlocker",
+                var result = MessageBox.Show("Spotify ads will not be muted if EZBlocker is not running.\r\n\r\nAre you sure you want to exit?", "EZBlocker",
                                  MessageBoxButtons.YesNo,
-                                 MessageBoxIcon.Question);
+                                 MessageBoxIcon.Warning);
 
                 e.Cancel = (result == DialogResult.No);
 
